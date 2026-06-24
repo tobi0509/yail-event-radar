@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { events } from "@/lib/schema";
 import { crawlMeetup } from "@/lib/crawlers/meetup";
 import { crawlEventbrite } from "@/lib/crawlers/eventbrite";
-import { crawlBraveSearch } from "@/lib/crawlers/brave-search";
+import { crawlAsai } from "@/lib/crawlers/asai";
 import { detectCategory } from "@/lib/categorize";
 import type { UnifiedEvent } from "@/lib/types";
 
@@ -20,11 +20,11 @@ export async function POST(request: NextRequest) {
 
   try {
     // Run all crawlers in parallel
-    const [meetupResult, eventbriteResult, braveResult] =
+    const [meetupResult, eventbriteResult, asaiResult] =
       await Promise.allSettled([
         crawlMeetup(),
         crawlEventbrite(),
-        crawlBraveSearch(),
+        crawlAsai(),
       ]);
 
     const allRaw: UnifiedEvent[] = [];
@@ -39,10 +39,10 @@ export async function POST(request: NextRequest) {
     } else {
       errors.push(`eventbrite: ${String(eventbriteResult.reason)}`);
     }
-    if (braveResult.status === "fulfilled") {
-      allRaw.push(...braveResult.value);
+    if (asaiResult.status === "fulfilled") {
+      allRaw.push(...asaiResult.value);
     } else {
-      errors.push(`brave: ${String(braveResult.reason)}`);
+      errors.push(`asai: ${String(asaiResult.reason)}`);
     }
 
     // In-memory dedup by URL

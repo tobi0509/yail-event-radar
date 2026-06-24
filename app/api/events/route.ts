@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { events } from "@/lib/schema";
 import { and, desc, asc, eq, SQL } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;

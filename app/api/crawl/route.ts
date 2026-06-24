@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { events } from "@/lib/schema";
 import { crawlMeetup } from "@/lib/crawlers/meetup";
 import { crawlEventbrite } from "@/lib/crawlers/eventbrite";
-import { crawlGoogle } from "@/lib/crawlers/google-search";
+import { crawlBraveSearch } from "@/lib/crawlers/brave-search";
 import { detectCategory } from "@/lib/categorize";
 import type { UnifiedEvent } from "@/lib/types";
 
@@ -20,11 +20,11 @@ export async function POST(request: NextRequest) {
 
   try {
     // Run all crawlers in parallel
-    const [meetupResult, eventbriteResult, googleResult] =
+    const [meetupResult, eventbriteResult, braveResult] =
       await Promise.allSettled([
         crawlMeetup(),
         crawlEventbrite(),
-        crawlGoogle(),
+        crawlBraveSearch(),
       ]);
 
     const allRaw: UnifiedEvent[] = [];
@@ -39,10 +39,10 @@ export async function POST(request: NextRequest) {
     } else {
       errors.push(`eventbrite: ${String(eventbriteResult.reason)}`);
     }
-    if (googleResult.status === "fulfilled") {
-      allRaw.push(...googleResult.value);
+    if (braveResult.status === "fulfilled") {
+      allRaw.push(...braveResult.value);
     } else {
-      errors.push(`google: ${String(googleResult.reason)}`);
+      errors.push(`brave: ${String(braveResult.reason)}`);
     }
 
     // In-memory dedup by URL

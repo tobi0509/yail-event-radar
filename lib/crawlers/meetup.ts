@@ -1,61 +1,103 @@
 import type { UnifiedEvent } from "@/lib/types";
 
-interface MeetupVenue {
-  city?: string;
-  country?: string;
+// Österreichische AI/Tech-Meetup-Gruppen auf Meetup.com
+// RSS-Feeds sind öffentlich — kein API-Key nötig
+const MEETUP_GROUPS = [
+  "ai-austria",
+  "vienna-ai-tinkerers",
+  "viennaml",                // Vienna Machine Learning
+  "data-science-austria",
+  "tensorflow-and-deep-learning-vienna",
+  "PyData-Vienna",
+  "linz-data-science",
+];
+
+interface RssItem {
+  title: string;
+  link: string;
+  pubDate: string;
+  description: string;
 }
 
-interface MeetupEvent {
-  name?: string;
-  time?: number;
-  link?: string;
-  description?: string;
-  venue?: MeetupVenue;
+function parseRssItems(xml: string): RssItem[] {
+  const items: RssItem[] = [];
+  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+  let match;
+
+  while ((match = itemRegex.exec(xml)) !== null) {
+    const block = match[1];
+    const get = (tag: string) => {
+      const m = new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i").exec(block);
+      return (m?.[1] ?? m?.[2] ?? "").trim();
+    };
+
+    const title = get("title");
+    const link = get("link") || get("guid");
+    if (title && link) {
+      items.push({ title, link, pubDate: get("pubDate"), description: get("description") });
+    }
+  }
+  return items;
 }
 
-interface MeetupResponse {
-  events?: MeetupEvent[];
+function extractDate(pubDate: string): string | null {
+  if (!pubDate) return null;
+  const d = new Date(pubDate);
+  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
+function extractLocation(description: string): string | null {
+  // Meetup RSS descriptions often contain "Location: ..." or city names
+  const m = description.match(/(?:Location|Ort|Venue|Adresse):\s*([^<\n,]+)/i);
+  if (m) return m[1].trim();
+  // Austrian city mentions
+  const cities = ["Wien", "Vienna", "Linz", "Graz", "Salzburg", "Innsbruck"];
+  for (const city of cities) {
+    if (description.includes(city)) return `${city}, Österreich`;
+  }
+  return null;
 }
 
 export async function crawlMeetup(): Promise<UnifiedEvent[]> {
-  const key = process.env.MEETUP_API_KEY;
-  if (!key) {
-    console.warn("[meetup] MEETUP_API_KEY not set, skipping");
-    return [];
+  const results: UnifiedEvent[] = [];
+  const seenUrls = new Set<string>();
+
+  for (const group of MEETUP_GROUPS) {
+    try {
+      const res = await fetch(
+        `https://www.meetup.com/${group}/events/rss/`,
+        {
+          headers: { "User-Agent": "YAIL-Event-Radar/1.0" },
+          next: { revalidate: 0 },
+        }
+      );
+
+      if (!res.ok) {
+        // Group might not exist — silently skip
+        continue;
+      }
+
+      const xml = await res.text();
+      const items = parseRssItems(xml);
+
+      for (const item of items) {
+        if (!item.link || seenUrls.has(item.link)) continue;
+        seenUrls.add(item.link);
+
+        results.push({
+          title: item.title,
+          date: extractDate(item.pubDate),
+          location: extractLocation(item.description) ?? "Österreich",
+          url: item.link,
+          source: "meetup",
+          rawDescription: item.description.replace(/<[^>]+>/g, "").slice(0, 500),
+        });
+      }
+    } catch (err) {
+      console.warn(`[meetup] RSS fetch failed for group "${group}":`, err);
+    }
   }
 
-  const params = new URLSearchParams({
-    country: "AT",
-    text: "artificial intelligence machine learning AI",
-    page: "50",
-    key,
-  });
-
-  const res = await fetch(
-    `https://api.meetup.com/find/upcoming_events?${params}`,
-    { next: { revalidate: 0 } }
-  );
-
-  if (!res.ok) {
-    console.error(`[meetup] HTTP ${res.status}: ${await res.text()}`);
-    return [];
-  }
-
-  const data: MeetupResponse = await res.json();
-  const raw = data.events ?? [];
-
-  return raw
-    .filter((e): e is MeetupEvent & { name: string; link: string } =>
-      Boolean(e.name && e.link)
-    )
-    .map((e) => ({
-      title: e.name,
-      date: e.time ? new Date(e.time).toISOString().slice(0, 10) : null,
-      location: e.venue?.city
-        ? `${e.venue.city}, ${e.venue.country ?? "AT"}`
-        : null,
-      url: e.link,
-      source: "meetup" as const,
-      rawDescription: e.description?.slice(0, 500),
-    }));
+  console.log(`[meetup] ${results.length} events from ${MEETUP_GROUPS.length} groups`);
+  return results;
 }

@@ -66,15 +66,34 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
 
-  const body = (await request.json()) as { status?: unknown };
-  const status = body.status;
-  if (status !== "upcoming" && status !== "past") {
-    return NextResponse.json({ error: "status must be upcoming or past" }, { status: 400 });
+  const body = (await request.json()) as {
+    status?: unknown;
+    imageUrl?: unknown;
+    description?: unknown;
+  };
+
+  const patch: Record<string, string | null> = {};
+
+  if (body.status !== undefined) {
+    if (body.status !== "upcoming" && body.status !== "past") {
+      return NextResponse.json({ error: "status must be upcoming or past" }, { status: 400 });
+    }
+    patch.status = body.status;
+  }
+  if (body.imageUrl !== undefined) {
+    patch.imageUrl = typeof body.imageUrl === "string" ? body.imageUrl || null : null;
+  }
+  if (body.description !== undefined) {
+    patch.description = typeof body.description === "string" ? body.description || null : null;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
 
   const updated = await db
     .update(events)
-    .set({ status })
+    .set(patch)
     .where(eq(events.id, id))
     .returning();
 

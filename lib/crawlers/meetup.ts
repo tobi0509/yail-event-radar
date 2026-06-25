@@ -52,6 +52,11 @@ function extractDate(pubDate: string): string | null {
   return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
 
+function extractImage(description: string): string | undefined {
+  const m = description.match(/<img[^>]+src="([^"]+meetupstatic[^"]+)"/i);
+  return m ? m[1] : undefined;
+}
+
 function extractLocation(description: string): string | null {
   // Meetup RSS descriptions often contain "Location: ..." or city names
   const m = description.match(/(?:Location|Ort|Venue|Adresse):\s*([^<\n,]+)/i);
@@ -97,6 +102,7 @@ export async function crawlMeetup(): Promise<UnifiedEvent[]> {
           url: item.link,
           source: "meetup",
           rawDescription: item.description.replace(/<[^>]+>/g, "").slice(0, 500),
+          imageUrl: extractImage(item.description),
         });
       }
     } catch (err) {

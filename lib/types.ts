@@ -5,4 +5,5 @@ export interface UnifiedEvent {
   url: string;
   source: "meetup" | "eventbrite" | "asai" | "aiaustria" | "aiat" | "confeurope" | "allconf";
   rawDescription?: string;
+  imageUrl?: string;
 }

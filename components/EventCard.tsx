@@ -11,8 +11,21 @@ interface EventCardProps {
 
 const SOURCE_LABELS: Record<string, string> = {
   meetup: "Meetup",
-  eventbrite: "Eventbrite",
-  google: "Web",
+  asai: "ASAI",
+  aiaustria: "AI Austria",
+  aiat: "AI:AT",
+  confeurope: "ConfEurope",
+  allconf: "AllConf",
+};
+
+const CATEGORY_GRADIENTS: Record<string, string> = {
+  Conference: "from-[#A3C4F3] to-[#7EB5F0]",
+  Hackathon: "from-[#FDD2BF] to-[#F9A87C]",
+  Meetup: "from-[#B8E0D2] to-[#7FCFB8]",
+  Workshop: "from-[#A3C4F3] to-[#B8E0D2]",
+  Networking: "from-[#B8E0D2] to-[#A3C4F3]",
+  Webinar: "from-[#E8EDF2] to-[#D0D8E4]",
+  Other: "from-[#F2F4F7] to-[#E3E6EA]",
 };
 
 function buildCalendarUrl(event: Event): string {
@@ -103,12 +116,29 @@ export function EventCard({ event }: EventCardProps) {
   const sourceLabel = event.source ? SOURCE_LABELS[event.source] ?? event.source : null;
   const isPast = event.status === "past";
 
+  const gradient = CATEGORY_GRADIENTS[event.category ?? "Other"] ?? CATEGORY_GRADIENTS["Other"];
+
   return (
     <article
-      className={`bg-card rounded-card p-8 border border-border shadow-[0_2px_8px_rgba(163,196,243,0.08)] hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 flex flex-col gap-4 ${
+      className={`bg-card rounded-card border border-border shadow-[0_2px_8px_rgba(163,196,243,0.08)] hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 flex flex-col overflow-hidden ${
         isPast ? "opacity-60" : ""
       }`}
     >
+      {/* Event image or gradient placeholder */}
+      {"imageUrl" in event && event.imageUrl ? (
+        <div className="h-40 overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={event.imageUrl as string}
+            alt={event.title}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      ) : (
+        <div className={`h-24 bg-gradient-to-br ${gradient} opacity-60`} />
+      )}
+
+      <div className="p-6 flex flex-col gap-4">
       {/* Top row: category + past badge */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <CategoryTag category={event.category ?? "Other"} />
@@ -120,9 +150,16 @@ export function EventCard({ event }: EventCardProps) {
       </div>
 
       {/* Title */}
-      <h2 className="font-poppins font-semibold text-[22px] leading-snug text-primary-text">
+      <h2 className="font-poppins font-semibold text-[20px] leading-snug text-primary-text">
         {event.title}
       </h2>
+
+      {/* Description */}
+      {"description" in event && event.description && (
+        <p className="text-sm font-inter text-secondary-text leading-relaxed line-clamp-2">
+          {event.description as string}
+        </p>
+      )}
 
       {/* Date & location */}
       <div className="flex items-center gap-3 text-sm flex-wrap">
@@ -170,6 +207,7 @@ export function EventCard({ event }: EventCardProps) {
         >
           + Kalender
         </a>
+      </div>
       </div>
     </article>
   );

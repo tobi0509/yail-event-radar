@@ -9,6 +9,8 @@ import { crawlAiAt } from "@/lib/crawlers/aiat";
 import { crawlConfEurope } from "@/lib/crawlers/confeurope";
 import { crawlAllConf } from "@/lib/crawlers/allconf";
 import { detectCategory } from "@/lib/categorize";
+import { isAiRelevant } from "@/lib/filter-ai";
+import { extractDescription } from "@/lib/extract-description";
 import type { UnifiedEvent } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
@@ -23,7 +25,6 @@ export async function POST(request: NextRequest) {
   let skipped = 0;
 
   try {
-    // Run all crawlers in parallel
     const crawlerEntries = [
       { name: "meetup", fn: crawlMeetup },
       { name: "asai", fn: crawlAsai },
@@ -63,8 +64,12 @@ export async function POST(request: NextRequest) {
     );
     const novel = deduped.filter((e) => !existingUrls.has(e.url));
 
+    // AI-Relevanz-Filter: nur Events mit AI/ML-Bezug behalten
+    const aiRelevant = novel.filter((e) => isAiRelevant(e.title, e.rawDescription));
+    const filteredOut = novel.length - aiRelevant.length;
+
     console.log(
-      `[crawl] raw=${allRaw.length} deduped=${deduped.length} novel=${novel.length}`
+      `[crawl] raw=${allRaw.length} deduped=${deduped.length} novel=${novel.length} ai_relevant=${aiRelevant.length} filtered_out=${filteredOut}`
     );
 
     // Mark existing upcoming events as past if their date has passed
@@ -79,8 +84,8 @@ export async function POST(request: NextRequest) {
         )
       );
 
-    // Insert all novel events — no AI filter, community rates them
-    for (const event of novel) {
+    // Insert AI-relevant events only
+    for (const event of aiRelevant) {
       try {
         const isPast = event.date && event.date < today;
         await db
@@ -90,6 +95,8 @@ export async function POST(request: NextRequest) {
             date: event.date,
             location: event.location,
             category: detectCategory(event.title, event.rawDescription),
+            description: extractDescription(event.rawDescription),
+            imageUrl: event.imageUrl ?? null,
             url: event.url,
             source: event.source,
             status: isPast ? "past" : "upcoming",
@@ -103,7 +110,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ inserted, skipped, errors });
+    return NextResponse.json({ inserted, skipped, filtered_out: filteredOut, errors });
   } catch (err) {
     console.error("[POST /api/crawl]", err);
     return NextResponse.json(

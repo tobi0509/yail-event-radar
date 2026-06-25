@@ -4,6 +4,10 @@ import { events } from "@/lib/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { crawlMeetup } from "@/lib/crawlers/meetup";
 import { crawlAsai } from "@/lib/crawlers/asai";
+import { crawlAiAustria } from "@/lib/crawlers/aiaustria";
+import { crawlAiAt } from "@/lib/crawlers/aiat";
+import { crawlConfEurope } from "@/lib/crawlers/confeurope";
+import { crawlAllConf } from "@/lib/crawlers/allconf";
 import { detectCategory } from "@/lib/categorize";
 import type { UnifiedEvent } from "@/lib/types";
 
@@ -20,24 +24,29 @@ export async function POST(request: NextRequest) {
 
   try {
     // Run all crawlers in parallel
-    const [meetupResult, asaiResult] =
-      await Promise.allSettled([
-        crawlMeetup(),
-        crawlAsai(),
-      ]);
+    const crawlerEntries = [
+      { name: "meetup", fn: crawlMeetup },
+      { name: "asai", fn: crawlAsai },
+      { name: "aiaustria", fn: crawlAiAustria },
+      { name: "aiat", fn: crawlAiAt },
+      { name: "confeurope", fn: crawlConfEurope },
+      { name: "allconf", fn: crawlAllConf },
+    ] as const;
+
+    const results = await Promise.allSettled(
+      crawlerEntries.map((c) => c.fn())
+    );
 
     const allRaw: UnifiedEvent[] = [];
 
-    if (meetupResult.status === "fulfilled") {
-      allRaw.push(...meetupResult.value);
-    } else {
-      errors.push(`meetup: ${String(meetupResult.reason)}`);
-    }
-    if (asaiResult.status === "fulfilled") {
-      allRaw.push(...asaiResult.value);
-    } else {
-      errors.push(`asai: ${String(asaiResult.reason)}`);
-    }
+    results.forEach((result, i) => {
+      const name = crawlerEntries[i].name;
+      if (result.status === "fulfilled") {
+        allRaw.push(...result.value);
+      } else {
+        errors.push(`${name}: ${String(result.reason)}`);
+      }
+    });
 
     // In-memory dedup by URL
     const seenUrls = new Set<string>();

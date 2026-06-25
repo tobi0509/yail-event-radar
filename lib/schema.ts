@@ -10,7 +10,7 @@ export const events = pgTable("events", {
   score: real("score"),
   ratingCount: integer("rating_count").default(0),
   url: text("url").unique(),
-  source: text("source"), // 'meetup' | 'eventbrite' | 'google'
+  source: text("source"), // 'meetup' | 'eventbrite' | 'asai' | 'aiaustria' | 'aiat' | 'confeurope' | 'allconf'
   status: text("status").default("upcoming"), // 'upcoming' | 'past'
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });

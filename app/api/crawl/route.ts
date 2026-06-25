@@ -3,7 +3,6 @@ import { db } from "@/lib/db";
 import { events } from "@/lib/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { crawlMeetup } from "@/lib/crawlers/meetup";
-import { crawlEventbrite } from "@/lib/crawlers/eventbrite";
 import { crawlAsai } from "@/lib/crawlers/asai";
 import { detectCategory } from "@/lib/categorize";
 import type { UnifiedEvent } from "@/lib/types";
@@ -21,10 +20,9 @@ export async function POST(request: NextRequest) {
 
   try {
     // Run all crawlers in parallel
-    const [meetupResult, eventbriteResult, asaiResult] =
+    const [meetupResult, asaiResult] =
       await Promise.allSettled([
         crawlMeetup(),
-        crawlEventbrite(),
         crawlAsai(),
       ]);
 
@@ -34,11 +32,6 @@ export async function POST(request: NextRequest) {
       allRaw.push(...meetupResult.value);
     } else {
       errors.push(`meetup: ${String(meetupResult.reason)}`);
-    }
-    if (eventbriteResult.status === "fulfilled") {
-      allRaw.push(...eventbriteResult.value);
-    } else {
-      errors.push(`eventbrite: ${String(eventbriteResult.reason)}`);
     }
     if (asaiResult.status === "fulfilled") {
       allRaw.push(...asaiResult.value);

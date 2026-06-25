@@ -5,11 +5,17 @@ import type { UnifiedEvent } from "@/lib/types";
 const MEETUP_GROUPS = [
   "ai-austria",
   "vienna-ai-tinkerers",
-  "viennaml",                // Vienna Machine Learning
+  "viennaml",
   "data-science-austria",
   "tensorflow-and-deep-learning-vienna",
   "PyData-Vienna",
   "linz-data-science",
+  "vienna-deep-learning",
+  "GDG-Vienna",
+  "AWS-Vienna",
+  "vienna-data-science-group",
+  "Graz-AI-Meetup",
+  "tech-talks-vienna",
 ];
 
 interface RssItem {

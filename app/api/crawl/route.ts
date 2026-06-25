@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { events } from "@/lib/schema";
+import { eq, and, sql } from "drizzle-orm";
 import { crawlMeetup } from "@/lib/crawlers/meetup";
 import { crawlEventbrite } from "@/lib/crawlers/eventbrite";
 import { crawlAsai } from "@/lib/crawlers/asai";
@@ -64,9 +65,22 @@ export async function POST(request: NextRequest) {
       `[crawl] raw=${allRaw.length} deduped=${deduped.length} novel=${novel.length}`
     );
 
+    // Mark existing upcoming events as past if their date has passed
+    const today = new Date().toISOString().slice(0, 10);
+    await db
+      .update(events)
+      .set({ status: "past" })
+      .where(
+        and(
+          eq(events.status, "upcoming"),
+          sql`${events.date} < ${today}`
+        )
+      );
+
     // Insert all novel events — no AI filter, community rates them
     for (const event of novel) {
       try {
+        const isPast = event.date && event.date < today;
         await db
           .insert(events)
           .values({
@@ -76,7 +90,7 @@ export async function POST(request: NextRequest) {
             category: detectCategory(event.title, event.rawDescription),
             url: event.url,
             source: event.source,
-            status: "upcoming",
+            status: isPast ? "past" : "upcoming",
           })
           .onConflictDoNothing();
         inserted++;

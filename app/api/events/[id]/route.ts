@@ -70,9 +70,12 @@ export async function PATCH(
     status?: unknown;
     imageUrl?: unknown;
     description?: unknown;
+    confirmed?: unknown;
+    date?: unknown;
+    location?: unknown;
   };
 
-  const patch: Record<string, string | null> = {};
+  const patch: Record<string, string | boolean | null> = {};
 
   if (body.status !== undefined) {
     if (body.status !== "upcoming" && body.status !== "past") {
@@ -85,6 +88,16 @@ export async function PATCH(
   }
   if (body.description !== undefined) {
     patch.description = typeof body.description === "string" ? body.description || null : null;
+  }
+  if (body.confirmed !== undefined) {
+    patch.confirmed = body.confirmed === true;
+  }
+  if (body.date !== undefined) {
+    const d = typeof body.date === "string" ? body.date.trim() : "";
+    patch.date = d.match(/^\d{4}-\d{2}-\d{2}$/) ? d : null;
+  }
+  if (body.location !== undefined) {
+    patch.location = typeof body.location === "string" ? body.location.trim() || null : null;
   }
 
   if (Object.keys(patch).length === 0) {
@@ -101,4 +114,30 @@ export async function PATCH(
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
   return NextResponse.json(updated[0]);
+}
+
+// DELETE /api/events/[id]  →  admin-only event rejection
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const secret = process.env.CRAWL_SECRET;
+  if (!secret || request.headers.get("Authorization") !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const id = parseInt(params.id, 10);
+  if (isNaN(id)) {
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  }
+
+  const deleted = await db
+    .delete(events)
+    .where(eq(events.id, id))
+    .returning({ id: events.id });
+
+  if (deleted.length === 0) {
+    return NextResponse.json({ error: "Event not found" }, { status: 404 });
+  }
+  return NextResponse.json({ deleted: deleted[0].id });
 }

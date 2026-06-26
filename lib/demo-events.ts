@@ -13,6 +13,7 @@ export const DEMO_EVENTS: Event[] = [
     url: "https://vienna.aitinkerers.org",
     source: "meetup", description: null, imageUrl: null,
     status: "upcoming",
+    confirmed: true,
     createdAt: new Date("2026-06-01"),
   },
   {
@@ -26,6 +27,7 @@ export const DEMO_EVENTS: Event[] = [
     url: "https://www.asai.ac.at/en/events",
     source: "google", description: null, imageUrl: null,
     status: "upcoming",
+    confirmed: true,
     createdAt: new Date("2026-06-01"),
   },
   {
@@ -39,6 +41,7 @@ export const DEMO_EVENTS: Event[] = [
     url: "https://ai-mission.eu/hackathon.html",
     source: "google", description: null, imageUrl: null,
     status: "upcoming",
+    confirmed: true,
     createdAt: new Date("2026-06-01"),
   },
   {
@@ -52,6 +55,7 @@ export const DEMO_EVENTS: Event[] = [
     url: "https://www.meetup.com/ai-austria/",
     source: "meetup", description: null, imageUrl: null,
     status: "upcoming",
+    confirmed: true,
     createdAt: new Date("2026-06-01"),
   },
   {
@@ -65,6 +69,7 @@ export const DEMO_EVENTS: Event[] = [
     url: "https://digitalhumanism.at/en/events-en/",
     source: "google", description: null, imageUrl: null,
     status: "past",
+    confirmed: true,
     createdAt: new Date("2026-05-01"),
   },
   {
@@ -78,6 +83,7 @@ export const DEMO_EVENTS: Event[] = [
     url: "https://www.meetup.com/ai-austria/",
     source: "meetup", description: null, imageUrl: null,
     status: "upcoming",
+    confirmed: true,
     createdAt: new Date("2026-06-15"),
   },
 ];

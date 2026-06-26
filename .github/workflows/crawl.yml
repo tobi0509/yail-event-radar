@@ -2,7 +2,8 @@ name: Weekly Event Crawl
 
 on:
   schedule:
-    - cron: "0 7 * * 1" # Jeden Montag um 07:00 UTC
+    - cron: "0 7 * * 1" # Montag 07:00 UTC
+    - cron: "0 7 * * 4" # Donnerstag 07:00 UTC
   workflow_dispatch: # Manueller Trigger zum Testen
 
 jobs:

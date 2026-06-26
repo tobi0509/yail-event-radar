@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ScoreBadge } from "./ScoreBadge";
 import { CategoryTag } from "./CategoryTag";
 import type { Event } from "@/lib/schema";
@@ -8,15 +8,6 @@ import type { Event } from "@/lib/schema";
 interface EventCardProps {
   event: Event;
 }
-
-const SOURCE_LABELS: Record<string, string> = {
-  meetup: "Meetup",
-  asai: "ASAI",
-  aiaustria: "AI Austria",
-  aiat: "AI:AT",
-  confeurope: "ConfEurope",
-  allconf: "AllConf",
-};
 
 const CATEGORY_GRADIENTS: Record<string, string> = {
   Conference: "from-[#A3C4F3] to-[#7EB5F0]",
@@ -27,6 +18,27 @@ const CATEGORY_GRADIENTS: Record<string, string> = {
   Webinar: "from-[#E8EDF2] to-[#D0D8E4]",
   Other: "from-[#F2F4F7] to-[#E3E6EA]",
 };
+
+function sanitizeLocation(s: string): string {
+  return s
+    .replace(/^(?:in person|online|hybrid|virtual|in-person)[,\s]+/i, "")
+    .trim();
+}
+
+function decodeHtml(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#40;/g, "(")
+    .replace(/&#41;/g, ")")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    // Strip leading separators and format labels from Notion-scraped data
+    .replace(/^[/\s]+(?:in person|online|hybrid|virtual|in-person)?\s*/i, "")
+    .replace(/^\/\s*/, "")
+    .trim();
+}
 
 function buildCalendarUrl(event: Event): string {
   const title = encodeURIComponent(event.title);
@@ -104,6 +116,40 @@ function StarRating({
   );
 }
 
+function ExpandableDescription({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [isClamped, setIsClamped] = useState(false);
+  const ref = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (el) {
+      setIsClamped(el.scrollHeight > el.clientHeight);
+    }
+  }, [text]);
+
+  return (
+    <div>
+      <p
+        ref={ref}
+        className={`text-sm font-inter text-secondary-text leading-relaxed ${
+          expanded ? "" : "line-clamp-2"
+        }`}
+      >
+        {text}
+      </p>
+      {(isClamped || expanded) && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-1 text-xs font-inter text-[#A3C4F3] hover:text-[#7EB5F0] transition-colors"
+        >
+          {expanded ? "Weniger anzeigen ↑" : "Mehr anzeigen ↓"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function EventCard({ event }: EventCardProps) {
   const formattedDate = event.date
     ? new Date(event.date + "T00:00:00").toLocaleDateString("de-AT", {
@@ -113,10 +159,14 @@ export function EventCard({ event }: EventCardProps) {
       })
     : "Datum unbekannt";
 
-  const sourceLabel = event.source ? SOURCE_LABELS[event.source] ?? event.source : null;
   const isPast = event.status === "past";
-
   const gradient = CATEGORY_GRADIENTS[event.category ?? "Other"] ?? CATEGORY_GRADIENTS["Other"];
+
+  const title = decodeHtml(event.title);
+  const description =
+    "description" in event && event.description
+      ? decodeHtml(event.description as string)
+      : null;
 
   return (
     <article
@@ -124,90 +174,82 @@ export function EventCard({ event }: EventCardProps) {
         isPast ? "opacity-60" : ""
       }`}
     >
-      {/* Event image or gradient placeholder */}
+      {/* Event image or gradient placeholder — fixed 2:1 aspect ratio for consistency */}
       {"imageUrl" in event && event.imageUrl ? (
-        <div className="h-40 overflow-hidden">
+        <div className="w-full aspect-[2/1] overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={event.imageUrl as string}
-            alt={event.title}
-            className="w-full h-full object-cover"
+            alt={title}
+            className="w-full h-full object-cover object-center"
           />
         </div>
       ) : (
-        <div className={`h-24 bg-gradient-to-br ${gradient} opacity-60`} />
+        <div className={`w-full aspect-[4/1] bg-gradient-to-br ${gradient} opacity-60`} />
       )}
 
       <div className="p-6 flex flex-col gap-4">
-      {/* Top row: category + past badge */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <CategoryTag category={event.category ?? "Other"} />
-        {isPast && (
-          <span className="text-xs font-mono text-[#B0B0B0] px-2 py-1 bg-[#F2F4F7] rounded-cta">
-            Vergangen
-          </span>
+        {/* Top row: category + past badge */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <CategoryTag category={event.category ?? "Other"} />
+          {isPast && (
+            <span className="text-xs font-mono text-[#B0B0B0] px-2 py-1 bg-[#F2F4F7] rounded-cta">
+              Vergangen
+            </span>
+          )}
+        </div>
+
+        {/* Title */}
+        <h2 className="font-poppins font-semibold text-[20px] leading-snug text-primary-text">
+          {title}
+        </h2>
+
+        {/* Description with expand toggle */}
+        {description && (
+          <ExpandableDescription text={description} />
         )}
-      </div>
 
-      {/* Title */}
-      <h2 className="font-poppins font-semibold text-[20px] leading-snug text-primary-text">
-        {event.title}
-      </h2>
+        {/* Date & location */}
+        <div className="flex items-center gap-3 text-sm flex-wrap">
+          <span className="font-mono font-medium text-primary-text">{formattedDate}</span>
+          {event.location && sanitizeLocation(event.location) && (
+            <>
+              <span className="text-border">·</span>
+              <span className="font-inter text-secondary-text">{sanitizeLocation(event.location)}</span>
+            </>
+          )}
+        </div>
 
-      {/* Description */}
-      {"description" in event && event.description && (
-        <p className="text-sm font-inter text-secondary-text leading-relaxed line-clamp-2">
-          {event.description as string}
-        </p>
-      )}
+        {/* Community rating */}
+        <div className="pt-1">
+          <StarRating
+            eventId={event.id}
+            initialScore={event.score ?? null}
+            initialCount={event.ratingCount ?? null}
+          />
+        </div>
 
-      {/* Date & location */}
-      <div className="flex items-center gap-3 text-sm flex-wrap">
-        <span className="font-mono text-secondary-text">{formattedDate}</span>
-        {event.location && (
-          <>
-            <span className="text-border">·</span>
-            <span className="font-inter text-secondary-text">{event.location}</span>
-          </>
-        )}
-        {sourceLabel && (
-          <>
-            <span className="text-border">·</span>
-            <span className="text-xs font-mono text-[#B0B0B0]">via {sourceLabel}</span>
-          </>
-        )}
-      </div>
-
-      {/* Community rating */}
-      <div className="pt-1">
-        <StarRating
-          eventId={event.id}
-          initialScore={event.score ?? null}
-          initialCount={event.ratingCount ?? null}
-        />
-      </div>
-
-      {/* Action buttons */}
-      <div className="flex items-center gap-2 mt-auto pt-2 flex-wrap">
-        {event.url && (
+        {/* Action buttons */}
+        <div className="flex items-center gap-2 mt-auto pt-2 flex-wrap">
+          {event.url && (
+            <a
+              href={event.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-inter font-medium px-4 py-2 rounded-cta border border-border text-secondary-text hover:border-accent-blue hover:text-primary-text transition-colors"
+            >
+              Zum Event →
+            </a>
+          )}
           <a
-            href={event.url}
+            href={buildCalendarUrl(event)}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm font-inter font-medium px-4 py-2 rounded-cta border border-border text-secondary-text hover:border-accent-blue hover:text-primary-text transition-colors"
+            className="text-sm font-poppins font-semibold px-4 py-2 rounded-cta bg-gradient-to-br from-accent-blue to-mint text-primary-text hover:opacity-90 transition-opacity"
           >
-            Details →
+            + Kalender
           </a>
-        )}
-        <a
-          href={buildCalendarUrl(event)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm font-poppins font-semibold px-4 py-2 rounded-cta bg-gradient-to-br from-accent-blue to-mint text-primary-text hover:opacity-90 transition-opacity"
-        >
-          + Kalender
-        </a>
-      </div>
+        </div>
       </div>
     </article>
   );

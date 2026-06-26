@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { db } from "@/lib/db";
 import { events } from "@/lib/schema";
-import { asc, desc } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { EventGrid } from "@/components/EventGrid";
 import { FilterBar } from "@/components/FilterBar";
 import { DEMO_EVENTS } from "@/lib/demo-events";
@@ -11,6 +11,7 @@ async function getInitialEvents(): Promise<{ data: typeof DEMO_EVENTS; isDemo: b
     const data = await db
       .select()
       .from(events)
+      .where(eq(events.confirmed, true))
       .orderBy(asc(events.date), desc(events.createdAt));
     if (data.length === 0) return { data: DEMO_EVENTS, isDemo: true };
     return { data, isDemo: false };

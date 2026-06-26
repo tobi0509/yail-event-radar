@@ -10,6 +10,10 @@ export function extractDescription(raw?: string): string | null {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/\s+/g, " ")
+    .trim()
+    // Strip leading separators and format labels ("/ in person", "/ online", "/")
+    .replace(/^[/\s]+(?:in person|online|hybrid|virtual|in-person)?\s*/i, "")
+    .replace(/^\/\s*/, "")
     .trim();
 
   if (clean.length < 20) return null;

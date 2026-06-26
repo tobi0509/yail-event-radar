@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { events } from "@/lib/schema";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { AdminClient } from "./AdminClient";
 import { redirect } from "next/navigation";
 
@@ -16,15 +16,15 @@ export default async function AdminPage({
     redirect("/");
   }
 
-  const allEvents = await db
-    .select()
-    .from(events)
-    .orderBy(desc(events.createdAt));
+  const [unconfirmed, confirmed] = await Promise.all([
+    db.select().from(events).where(eq(events.confirmed, false)).orderBy(desc(events.createdAt)),
+    db.select().from(events).where(eq(events.confirmed, true)).orderBy(desc(events.createdAt)),
+  ]);
 
-  // Events ohne Bild zuerst
-  const sorted = [
-    ...allEvents.filter((e) => !e.imageUrl),
-    ...allEvents.filter((e) => e.imageUrl),
+  // Confirmed: events ohne Bild zuerst
+  const sortedConfirmed = [
+    ...confirmed.filter((e) => !e.imageUrl),
+    ...confirmed.filter((e) => e.imageUrl),
   ];
 
   return (
@@ -32,14 +32,17 @@ export default async function AdminPage({
       <div className="max-w-5xl mx-auto">
         <div className="mb-8">
           <h1 className="font-poppins font-bold text-3xl text-primary-text">
-            Admin — Events bearbeiten
+            Admin
           </h1>
           <p className="font-inter text-secondary-text mt-1">
-            {sorted.filter((e) => !e.imageUrl).length} ohne Bild ·{" "}
-            {sorted.length} gesamt
+            {unconfirmed.length} zu bestätigen · {confirmed.length} bestätigt
           </p>
         </div>
-        <AdminClient events={sorted} crawlSecret={secret} />
+        <AdminClient
+          unconfirmed={unconfirmed}
+          confirmed={sortedConfirmed}
+          crawlSecret={secret}
+        />
       </div>
     </main>
   );

@@ -14,6 +14,7 @@ export const events = pgTable("events", {
   description: text("description"),
   imageUrl: text("image_url"),
   status: text("status").default("upcoming"), // 'upcoming' | 'past'
+  confirmed: boolean("confirmed").default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 

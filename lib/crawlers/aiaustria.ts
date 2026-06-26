@@ -63,9 +63,17 @@ function extractEvents(html: string): UnifiedEvent[] {
     const dateMatch = row.match(/<span class="date">([^<]+)<\/span>/);
     const date = dateMatch ? parseNotionDate(dateMatch[1].trim()) : null;
 
-    // Region from notion-pill
-    const regionMatch = row.match(/notion-pill[^"]*">([^<]+)<\/span>/);
-    const region = regionMatch ? regionMatch[1].trim() : "";
+    // Extract all notion-pills — Notion uses pills for both format ("in person", "online")
+    // and geographic region ("Vienna", "Upper Austria") — filter out format words
+    const FORMAT_WORDS = new Set(["in person", "online", "hybrid", "virtual", "in-person"]);
+    const pillRegex = /notion-pill[^"]*">([^<]+)<\/span>/g;
+    const allPills: string[] = [];
+    let pillMatch;
+    while ((pillMatch = pillRegex.exec(row)) !== null) {
+      allPills.push(pillMatch[1].trim());
+    }
+    const regionPills = allPills.filter((p) => !FORMAT_WORDS.has(p.toLowerCase()));
+    const region = regionPills[0] ?? "";
 
     // Filter by target regions
     if (region && !matchesTargetRegion(region)) continue;

@@ -100,6 +100,7 @@ export async function POST(request: NextRequest) {
             url: event.url,
             source: event.source,
             status: isPast ? "past" : "upcoming",
+            confirmed: false,
           })
           .onConflictDoNothing();
         inserted++;

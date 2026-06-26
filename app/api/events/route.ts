@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category");
     const status = searchParams.get("status");
 
-    const conditions: SQL[] = [];
+    const conditions: SQL[] = [eq(events.confirmed, true)];
     if (category) conditions.push(eq(events.category, category));
     if (status) conditions.push(eq(events.status, status));
 
